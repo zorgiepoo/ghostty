@@ -121,6 +121,30 @@ fn config_trigger_(
     return trigger.cval();
 }
 
+/// Like ghostty_config_trigger but also considers bindings flagged
+/// `performable`. See `Binding.Set.getTriggerIncludingPerformable` for
+/// why this is a separate function rather than being the default.
+export fn ghostty_config_trigger_including_performable(
+    self: *Config,
+    str: [*]const u8,
+    len: usize,
+) inputpkg.Binding.Trigger.C {
+    return config_trigger_including_performable_(self, str[0..len]) catch |err| err: {
+        log.err("error finding trigger err={}", .{err});
+        break :err .{};
+    };
+}
+
+fn config_trigger_including_performable_(
+    self: *Config,
+    str: []const u8,
+) !inputpkg.Binding.Trigger.C {
+    const action = try inputpkg.Binding.Action.parse(str);
+    const trigger: inputpkg.Binding.Trigger =
+        self.keybind.set.getTriggerIncludingPerformable(action) orelse .{};
+    return trigger.cval();
+}
+
 export fn ghostty_config_diagnostics_count(self: *Config) u32 {
     return @intCast(self._diagnostics.items().len);
 }

@@ -2688,6 +2688,33 @@ pub const Set = struct {
         return self.reverse.get(a);
     }
 
+    /// Get a trigger for the given action, including bindings flagged
+    /// `performable`. Unlike `getTrigger`, this doesn't consult the reverse
+    /// map (which deliberately excludes performable bindings, see its docs)
+    /// and instead scans the top-level bindings directly, returning the
+    /// most recently added match.
+    ///
+    /// This exists for toolkits like AppKit whose menu systems dispatch key
+    /// equivalents through the first-responder chain and validate an item's
+    /// enabled state before performing it. Such toolkits can honor
+    /// performable's "act as if this binding doesn't exist" semantics via
+    /// standard menu item validation, unlike GTK, which is why the reverse
+    /// map excludes performable bindings in the first place.
+    pub fn getTriggerIncludingPerformable(self: Set, a: Action) ?Trigger {
+        var result: ?Trigger = null;
+        const action_hash = a.hash();
+        var it = self.bindings.iterator();
+        while (it.next()) |entry| {
+            switch (entry.value_ptr.*) {
+                .leader, .leaf_chained => {},
+                .leaf => |leaf| if (leaf.action.hash() == action_hash) {
+                    result = entry.key_ptr.*;
+                },
+            }
+        }
+        return result;
+    }
+
     /// Get an entry for the given key event. This will attempt to find
     /// a binding using multiple parts of the event in the following order:
     ///
@@ -4132,6 +4159,36 @@ test "set: performable is not part of reverse mappings" {
     {
         const trigger = s.getTrigger(.{ .new_window = {} }).?;
         try testing.expect(trigger.key.unicode == 'a');
+    }
+}
+
+test "set: getTriggerIncludingPerformable includes performable bindings" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var s: Set = .{};
+    defer s.deinit(alloc);
+
+    // No bindings yet.
+    try testing.expect(s.getTriggerIncludingPerformable(.{ .new_window = {} }) == null);
+
+    try s.put(alloc, .{ .key = .{ .unicode = 'a' } }, .{ .new_window = {} });
+    {
+        const trigger = s.getTriggerIncludingPerformable(.{ .new_window = {} }).?;
+        try testing.expect(trigger.key.unicode == 'a');
+    }
+
+    // A later performable binding should win, unlike the regular reverse map.
+    try s.putFlags(
+        alloc,
+        .{ .key = .{ .unicode = 'b' } },
+        .{ .new_window = {} },
+        .{ .performable = true },
+    );
+    {
+        const trigger = s.getTriggerIncludingPerformable(.{ .new_window = {} }).?;
+        try testing.expect(trigger.key.unicode == 'b');
+        try testing.expect(s.getTrigger(.{ .new_window = {} }).?.key.unicode == 'a');
     }
 }
 

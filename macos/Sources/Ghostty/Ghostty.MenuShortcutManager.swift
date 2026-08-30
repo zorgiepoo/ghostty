@@ -91,7 +91,7 @@ private extension Ghostty.MenuShortcutManager {
     func updateMenuShortcut(_ config: Ghostty.Config, action: String?, menuItem menu: NSMenuItem) -> Bool {
         guard
             let action,
-            let trigger = config.keybindTrigger(for: action),
+            let trigger = config.keybindTriggerIncludingPerformable(for: action),
             let shortcut = Ghostty.keyboardShortcut(for: trigger)
         else { return false }
 

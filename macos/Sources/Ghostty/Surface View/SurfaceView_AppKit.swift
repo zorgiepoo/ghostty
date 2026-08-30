@@ -1331,12 +1331,18 @@ extension Ghostty {
                 // Attempt to trigger a menu item for this key binding. We only do this if:
                 //   - We're not in a key sequence or table (those are separate bindings)
                 //   - The binding is NOT `all` (menu uses FirstResponder chain)
-                //   - The binding is NOT `performable` (menu will always consume)
                 //   - The binding is `consumed` (unconsumed bindings should pass through
                 //     to the terminal, so we must not intercept them for the menu)
+                //
+                // Note `performable` bindings ARE included here (unlike the reverse map
+                // used elsewhere to resolve triggers) because our menu items validate
+                // via `validateMenuItem`, which lets us honor "act as if this binding
+                // doesn't exist" by simply leaving the item disabled -- in which case
+                // `performGhosttyBindingMenuKeyEquivalent` returns false below and we
+                // fall through to `keyDown`, same as if no menu item existed at all.
                 if keySequence.isEmpty,
                    keyTables.isEmpty,
-                   bindingFlags.isDisjoint(with: [.all, .performable]),
+                   bindingFlags.isDisjoint(with: [.all]),
                    bindingFlags.contains(.consumed) {
                     if let appDelegate = NSApp.delegate as? AppDelegate,
                        appDelegate.performGhosttyBindingMenuKeyEquivalent(with: event) {

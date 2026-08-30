@@ -121,6 +121,18 @@ extension Ghostty {
             return ghostty_config_trigger(config, action, UInt(action.lengthOfBytes(using: .utf8)))
         }
 
+        /// Like `keybindTrigger(for:)` but also considers bindings flagged `performable`
+        /// (e.g. `copy_to_clipboard`, `start_search`). Used for menu shortcut syncing, where
+        /// AppKit can honor performable's "act as if this binding doesn't exist" semantics via
+        /// standard menu item validation.
+        func keybindTriggerIncludingPerformable(for action: String) -> ghostty_input_trigger_s? {
+            guard let config else { return nil }
+            return ghostty_config_trigger_including_performable(
+                config,
+                action,
+                UInt(action.lengthOfBytes(using: .utf8)))
+        }
+
         // MARK: - Configuration Values
 
         /// For all of the configuration values below, see the associated Ghostty documentation for
